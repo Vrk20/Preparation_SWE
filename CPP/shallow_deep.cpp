@@ -8,13 +8,30 @@
     Shallow Copy:
     - When an object is created using another object (default copy constructor),
     pointer or dynamic member vairables share the same memory.
-    - Any change in one object's pointer data will reflect in teh copied object.
+    - Any change in one object's pointer data will reflect in the copied object.
     -Risk: double free or memory corruption
 
     Deep Copy:
     -To avoid shallow copy issues, define an explicit copy constructor.
     -Allocate new memory for pointer members and copy content explicitly.
     -Ensures each object manages its own memory safely.
+    
+    Move semantics(C++11 and later):
+    -Instead of copying, ownership of resource is transferred
+    from a temporary (rvalue) object to new object.
+    -The source object is left in a valid but "empty" state
+    (e.g., pointer set ot nullptr).
+    -provides faster transfer by avoiding unnecessary heap allocations. 
+
+    Rule of Five:
+    -If a class manages a resource (like dynamic memory),
+    you usually need to explicitly define ALL five special member functions:
+    1.Destructor
+    2.Copy constructor
+    3.Copy Assignment
+    4.Move Construcor
+    5.Move Assigment
+    -Defining these ensures safe copying, moving, and destruction, preventing leaks and double fress.
  
 */
 
