@@ -58,6 +58,7 @@ class deep{
         char* Name; //dynamically allocated string
         int Age;
     public:
+        deep():Name(nullptr),Age(0){}
         //Constructor
         deep(char* c,int a){
             Name = new char[strlen(c)+1]; 
@@ -70,6 +71,36 @@ class deep{
             strcpy(Name,d.Name);               // copy content
             Age = d.Age;
         }
+        //move constructor
+        deep(deep&& de)noexcept
+        :Name(de.Name),Age(de.Age){
+            de.Name = nullptr;
+            de.Age = 0;
+        }
+        //move assignment operator
+        deep& operator=(deep&& de) noexcept{
+            if(this!=&de){
+                delete[] Name;
+                Name = de.Name;
+                Age = de.Age;
+                de.Name = nullptr;
+                de.Age =0;
+            }
+            return *this;
+        }
+        //operator overloading
+        deep& operator=(const deep& de){
+            if (this == &de)
+                return *this;
+            delete[] Name;
+            Name = new char[strlen(de.Name)+1];
+            strcpy(Name,de.Name);
+            Age = de.Age;
+            return *this;
+        }
+        bool operator==(const deep& de) const{
+            return((strcmp(Name,de.Name) == 0) && Age ==de.Age);
+        }
         //Setter for Name
         void setName(char *c){
             strcpy(Name,c);
@@ -79,7 +110,7 @@ class deep{
             Age = a;
         }
         //Display function
-        void display(){
+        void display() const {
             std::cout<<"---------------\n";
             std::cout<<"Name:\t"<<Name<<"\n";
             std::cout<<"Age:\t"<<Age<<"\n";
@@ -120,6 +151,24 @@ int main(){
     std::cout<<"\nAfter modifying d1:\n";
     d1.display();
     d2.display();  //d2 remains unchanged
+
+    std::cout<<"Using operator overloading\n";
+    deep d3;
+    d3 = d1;  //using assignment operator
+    d3.display();
+
+    if(d3 == d1){
+        std::cout<<"Objects are same\n";
+    }
+    else{
+        std::cout<<"objects are different\n";
+    }
+
+    deep d4 = std::move(d3);  //using move constructor
+    d4.display();
+
+    deep d5;
+    d5 = std::move(d4); //using move assignment
 
     return 0;
 }
