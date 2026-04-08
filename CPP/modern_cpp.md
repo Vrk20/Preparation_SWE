@@ -327,6 +327,104 @@ Avoid it by:
 - using `std::lock`
 - minimizing lock scope
 
+### Livelock
+
+Livelock is different from deadlock.
+
+In deadlock:
+
+- threads stop making progress because each is waiting
+
+In livelock:
+
+- threads are still active
+- they keep reacting to each other
+- but useful progress never happens
+
+Typical example:
+
+- thread A sees contention and politely backs off
+- thread B does the same
+- both keep retrying in sync forever
+
+Simple idea:
+
+```cpp
+while (true) {
+    if (tryLockA()) {
+        if (tryLockB()) {
+            break;   // work done
+        }
+        unlockA();
+    }
+
+    // both threads may keep backing off and retrying forever
+}
+```
+
+Why it matters:
+
+- CPU is still being used
+- the system looks busy
+- but no real work completes
+
+Ways to reduce livelock:
+
+- add randomized backoff
+- avoid symmetric retry logic
+- use blocking synchronization when appropriate
+- design clearer ownership of shared resources
+
+### Starvation
+
+Starvation means a thread is technically runnable, but it keeps failing to get CPU time or a shared resource for a very long time.
+
+Example causes:
+
+- unfair locking
+- high-priority threads always winning
+- scheduler bias
+
+Difference summary:
+
+- deadlock: everyone waits forever
+- livelock: everyone keeps moving but no one progresses
+- starvation: one participant keeps getting postponed while others proceed
+
+### `std::condition_variable`
+
+Condition variables are used when one thread should sleep until another thread signals that some condition became true.
+
+```cpp
+#include <condition_variable>
+#include <mutex>
+#include <queue>
+using namespace std;
+
+mutex mtx;
+condition_variable cv;
+queue<int> q;
+bool done = false;
+
+void producer() {
+    {
+        lock_guard<mutex> lock(mtx);
+        q.push(42);
+    }
+    cv.notify_one();
+}
+
+void consumer() {
+    unique_lock<mutex> lock(mtx);
+    cv.wait(lock, [] { return !q.empty() || done; });
+}
+```
+
+Important concept:
+
+- always wait with a predicate
+- this protects against spurious wakeups
+
 ---
 
 ## STL Containers and Iterators
@@ -1245,6 +1343,211 @@ Interview answer:
 
 ---
 
+## Other High-Value Modern C++ Topics Often Missed
+
+While reviewing this file, these were the most meaningful gaps for interview and practical coverage. They are not always the first things people study, but they are very useful.
+
+### `std::optional`
+
+`std::optional<T>` represents a value that may or may not be present.
+
+It is often better than:
+
+- magic values like `-1`
+- nullable raw pointers for simple value-return cases
+
+```cpp
+#include <iostream>
+#include <optional>
+using namespace std;
+
+optional<int> findEven(int x) {
+    if (x % 2 == 0) return x;
+    return nullopt;
+}
+```
+
+Why it matters:
+
+- makes absence explicit
+- improves API clarity
+
+### `std::variant`
+
+`std::variant` is a type-safe union that can hold one value from a fixed set of types.
+
+```cpp
+#include <iostream>
+#include <variant>
+using namespace std;
+
+variant<int, string> data = "hello";
+cout << get<string>(data) << '\n';
+```
+
+Use it when:
+
+- a value can be one of several known types
+- you want a safer alternative to unions or loosely typed designs
+
+### `std::string_view`
+
+`string_view` is a non-owning view into character data.
+
+```cpp
+#include <iostream>
+#include <string_view>
+using namespace std;
+
+void printName(string_view name) {
+    cout << name << '\n';
+}
+```
+
+Why it is useful:
+
+- avoids copying strings
+- works with string literals, `std::string`, and substrings
+
+Important caution:
+
+- `string_view` does not own the data
+- the referenced characters must outlive the view
+
+### `std::span`
+
+`span` is a non-owning view over a contiguous sequence.
+
+```cpp
+#include <iostream>
+#include <span>
+#include <vector>
+using namespace std;
+
+void printAll(span<const int> values) {
+    for (int x : values) {
+        cout << x << ' ';
+    }
+}
+```
+
+Why it is useful:
+
+- lets one function accept arrays, vectors, and other contiguous ranges
+- avoids passing raw pointer plus size separately
+
+### `std::future` and `std::async`
+
+These are higher-level async tools compared with manual thread management.
+
+```cpp
+#include <future>
+#include <iostream>
+using namespace std;
+
+int compute() {
+    return 42;
+}
+
+int main() {
+    future<int> result = async(launch::async, compute);
+    cout << result.get() << '\n';
+}
+```
+
+Why it matters:
+
+- easier result passing than raw threads
+- useful when a task produces one final value
+
+### Perfect Forwarding and `std::forward`
+
+This is a more niche but important template concept.
+
+Perfect forwarding preserves whether an argument was passed as an lvalue or rvalue.
+
+```cpp
+#include <utility>
+using namespace std;
+
+template <typename T>
+void relay(T&& arg) {
+    process(forward<T>(arg));
+}
+```
+
+Why it matters:
+
+- avoids unnecessary copies
+- foundational in generic library code
+
+Interview distinction:
+
+- `std::move` unconditionally treats a value as movable
+- `std::forward` preserves the original value category in forwarding code
+
+### `std::expected`
+
+`std::expected` is a C++23 type for returning either:
+
+- a successful value
+- or an error object
+
+It is useful when:
+
+- failure is expected and should be handled explicitly
+- you want a clearer alternative to exceptions for some APIs
+
+Conceptually:
+
+```cpp
+expected<int, string> parseNumber(string_view text);
+```
+
+### Ranges
+
+Ranges make algorithm pipelines more expressive in modern C++.
+
+```cpp
+#include <iostream>
+#include <ranges>
+#include <vector>
+using namespace std;
+
+int main() {
+    vector<int> v{1, 2, 3, 4, 5, 6};
+    for (int x : v | views::filter([](int n) { return n % 2 == 0; })) {
+        cout << x << ' ';
+    }
+}
+```
+
+Why it matters:
+
+- clearer composition of transformations
+- less manual iterator plumbing
+
+### Structured Bindings
+
+Structured bindings improve readability when unpacking tuple-like or pair-like values.
+
+```cpp
+#include <iostream>
+#include <map>
+using namespace std;
+
+int main() {
+    map<string, int> scores{{"Alice", 90}};
+    for (const auto& [name, score] : scores) {
+        cout << name << ' ' << score << '\n';
+    }
+}
+```
+
+This is already hinted at elsewhere in the file, but it is worth calling out as a standalone modern feature because it appears frequently in production code.
+
+---
+
 ## Design in Embedded and Automotive Contexts
 
 Some of the topics in your summary are not pure language features, but they are highly relevant in real C++ system work.
@@ -1394,11 +1697,13 @@ When writing modern C++ in interviews or production:
 Before an interview, make sure you can explain and write code for:
 
 - smart pointers and ownership transfer
-- race conditions, mutexes, and atomics
+- race conditions, mutexes, atomics, deadlock, and livelock
 - `vector`, `map`, and `unordered_map`
 - shallow copy, deep copy, and Rule of Five
 - command-line arguments
 - lambda expressions
+- `optional`, `variant`, `string_view`, and `span`
+- `condition_variable`, `future`, and `async`
 - C++11 to C++23 feature progression
 - testing basics with GTest
 - CAN signal decoding and watchdog purpose in embedded systems
