@@ -333,6 +333,41 @@ Avoid it by:
 
 The Standard Template Library gives you efficient, reusable containers and algorithms.
 
+One very important memory concept is:
+
+- the container object itself can live on the stack or on the heap depending on how you create it
+- most dynamic STL containers allocate their elements internally on the heap
+
+Example:
+
+```cpp
+vector<int> v1;                    // container object on stack, elements on heap
+auto v2 = make_unique<vector<int>>(); // container object on heap, elements also on heap
+```
+
+So when someone asks "Is `vector` stored on stack or heap?", the accurate answer is:
+
+- the `vector` object itself follows normal object lifetime rules
+- its internal dynamic buffer is typically allocated on the heap
+
+The same idea applies to many STL containers.
+
+### Container Categories
+
+STL containers are usually grouped into:
+
+- sequence containers
+- associative containers
+- unordered associative containers
+- container adapters
+
+Common examples:
+
+- sequence: `vector`, `deque`, `list`, `array`
+- associative: `map`, `set`, `multimap`, `multiset`
+- unordered associative: `unordered_map`, `unordered_set`
+- adapters: `stack`, `queue`, `priority_queue`
+
 ### `std::vector`
 
 `vector` is usually the default container choice.
@@ -365,6 +400,132 @@ int main() {
 
 Use `reserve()` when you roughly know the final size. It reduces reallocations and copies or moves.
 
+Memory model of `vector`:
+
+- the `vector` object itself stores small metadata such as pointer, size, and capacity
+- that small metadata is wherever the object is created, usually stack for local variables
+- the actual elements are stored in a contiguous dynamic buffer on the heap
+
+Important behavior:
+
+- when capacity is exceeded, `vector` allocates a larger heap block
+- existing elements are copied or moved to the new block
+- old iterators, pointers, and references may become invalid after reallocation
+
+Interview one-liner:
+
+- `vector` gives dynamic size with array-like contiguous storage
+
+### `std::array`
+
+`std::array` is a fixed-size container wrapper around a built-in array.
+
+```cpp
+#include <array>
+#include <iostream>
+using namespace std;
+
+int main() {
+    array<int, 4> a{1, 2, 3, 4};
+    cout << a[0] << '\n';
+}
+```
+
+Memory model of `array`:
+
+- elements are stored directly inside the `array` object itself
+- if the `array` object is local, the elements are typically on the stack
+- if the `array` object is a member of a heap object, those elements live inside that heap object
+
+So unlike `vector`, `array` does not perform a separate heap allocation for its elements.
+
+Use `array` when:
+
+- size is known at compile time
+- you want stack-friendly fixed-size storage
+- you want STL compatibility over raw arrays
+
+### `std::deque`
+
+`deque` stands for double-ended queue.
+
+```cpp
+#include <deque>
+using namespace std;
+
+deque<int> dq;
+dq.push_back(10);
+dq.push_front(5);
+```
+
+Properties:
+
+- fast insertion and deletion at both front and back
+- random access is supported
+- elements are not guaranteed to be stored in one contiguous block like `vector`
+
+Memory model of `deque`:
+
+- container object itself follows normal object placement rules
+- internal storage is dynamic and typically spread across multiple heap-allocated blocks
+
+Use `deque` when:
+
+- you need frequent push/pop at both ends
+- contiguous storage is not required
+
+### `std::list`
+
+`list` is a doubly linked list.
+
+```cpp
+#include <list>
+using namespace std;
+
+list<int> lst{10, 20, 30};
+lst.push_front(5);
+lst.push_back(40);
+```
+
+Properties:
+
+- very fast insertion and deletion when you already have the iterator
+- no random access like `v[2]`
+- much worse cache locality than `vector`
+
+Memory model of `list`:
+
+- each node is separately allocated on the heap
+- each node stores the value plus links to previous and next nodes
+- extra pointer overhead makes it memory-heavier than `vector`
+
+Interview point:
+
+- `list` is often less efficient than people expect because pointer chasing hurts cache performance
+
+### `std::string`
+
+Although not always introduced as a "container" first, `std::string` behaves like a specialized dynamic character container.
+
+```cpp
+#include <iostream>
+#include <string>
+using namespace std;
+
+int main() {
+    string name = "Modern C++";
+    cout << name << '\n';
+}
+```
+
+Memory model of `string`:
+
+- the string object itself follows normal object placement rules
+- many implementations store short strings directly inside the object using Small String Optimization
+- larger strings usually allocate character storage on the heap
+
+So `string` may avoid heap allocation for short values, depending on implementation.
+
 ### `std::map` vs `std::unordered_map`
 
 #### `std::map`
@@ -379,6 +540,18 @@ marks["Alice"] = 95;
 marks["Bob"] = 88;
 ```
 
+Memory model of `map`:
+
+- the `map` object itself is a small control object
+- each inserted element is typically stored in a separate tree node on the heap
+- nodes also store bookkeeping such as parent/child links and balancing information
+
+Implications:
+
+- not contiguous in memory
+- more memory overhead than `vector`
+- slower iteration than contiguous containers due to poor cache locality
+
 #### `std::unordered_map`
 
 - hash-based
@@ -391,10 +564,81 @@ freq["apple"]++;
 freq["banana"]++;
 ```
 
+Memory model of `unordered_map`:
+
+- it usually has a bucket array on the heap
+- inserted elements are stored in heap-allocated nodes associated with buckets
+- rehashing may allocate a new bucket array and redistribute elements
+
+Implications:
+
+- good average lookup performance
+- extra memory overhead from buckets and nodes
+- references to elements usually remain valid across rehash in many implementations, but iterators can be invalidated, so always check the standard guarantees for the operation you use
+
 Choosing between them:
 
 - use `map` when order matters
 - use `unordered_map` when fast average lookup matters and ordering is irrelevant
+
+### `std::set` and `std::unordered_set`
+
+These are like `map` and `unordered_map`, but they store only keys, not key-value pairs.
+
+```cpp
+set<int> ordered{3, 1, 2};
+unordered_set<int> fast{3, 1, 2};
+```
+
+Memory model:
+
+- `set` is typically tree-node based, so elements live in heap-allocated nodes
+- `unordered_set` typically uses a heap-allocated bucket structure plus heap-allocated nodes
+
+Use them when:
+
+- uniqueness matters
+- you do not need duplicate elements
+
+### Container Adapters
+
+Adapters provide a restricted interface on top of another container.
+
+#### `std::stack`
+
+```cpp
+#include <stack>
+using namespace std;
+
+stack<int> st;
+st.push(10);
+st.push(20);
+st.pop();
+```
+
+Important idea:
+
+- `stack` is usually built on top of another container such as `deque`
+- by default, `stack` uses `deque`
+
+Memory model:
+
+- the `stack` adapter object contains the underlying container object
+- actual element storage depends on that underlying container
+- with default `deque`, storage is typically dynamic and heap-backed
+
+#### `std::queue`
+
+`queue` is also an adapter, usually backed by `deque`.
+
+#### `std::priority_queue`
+
+`priority_queue` is commonly backed by `vector`.
+
+That means:
+
+- adapter object follows normal object placement rules
+- underlying `vector` usually allocates its element buffer on the heap
 
 ### Important `map` Trap
 
@@ -424,6 +668,23 @@ if (m.contains("missing")) {
 
 `contains()` requires C++20.
 
+### Stack vs Heap Summary for Common Containers
+
+This is the cleanest interview summary:
+
+- `std::array`: elements live inside the object itself, so no separate heap allocation
+- `std::vector`: object is local or heap depending on creation, elements usually live in one contiguous heap block
+- `std::deque`: object is local or heap depending on creation, elements typically live in multiple heap blocks
+- `std::list`: object is local or heap depending on creation, each node is separately heap-allocated
+- `std::map` and `std::set`: object is local or heap depending on creation, elements live in heap-allocated tree nodes
+- `std::unordered_map` and `std::unordered_set`: object is local or heap depending on creation, buckets and nodes usually live on the heap
+- `std::stack`, `std::queue`, `std::priority_queue`: storage depends on the underlying container
+
+The short conceptual rule is:
+
+- local object declaration decides where the container object lives
+- container design decides where its internal data lives
+
 ### Iterators
 
 Iterators generalize pointer-like traversal of containers.
@@ -446,6 +707,21 @@ Why iterators matter:
 
 - algorithms use them
 - they decouple generic code from specific containers
+
+Iterator category intuition:
+
+- `vector` and `array` iterators behave much like pointers because storage is contiguous
+- `list` iterators move node to node, so random jumping is not available
+- associative container iterators traverse tree or hash structures rather than contiguous memory
+
+Common invalidation idea:
+
+- `vector` iterators can be invalidated by reallocation
+- `deque` iterator invalidation rules are more subtle
+- `list` iterators are generally stable except for erased elements
+- `map` and `unordered_map` iterators can be invalidated by certain operations like erase or rehash
+
+Always know invalidation behavior for the specific container before storing iterators long term.
 
 Example with algorithm:
 
@@ -1126,6 +1402,541 @@ Before an interview, make sure you can explain and write code for:
 - C++11 to C++23 feature progression
 - testing basics with GTest
 - CAN signal decoding and watchdog purpose in embedded systems
+
+---
+
+## Important Keywords, Variations, and Examples
+
+This section is meant to be a quick-reference sheet for common C++ keywords. In interviews, it is often not enough to know the definition. You should also know:
+
+- where the keyword is used
+- how it changes behavior
+- what common variations look like
+
+### `const`
+
+`const` means the value should not be modified through that name or reference.
+
+Basic example:
+
+```cpp
+const int x = 10;
+// x = 20;   // error
+```
+
+Important variations:
+
+```cpp
+const int* p1 = &x;   // pointer to const int, value cannot be changed through p1
+int* const p2 = &y;   // const pointer, pointer cannot point elsewhere
+const int* const p3 = &x; // const pointer to const int
+```
+
+Member function variation:
+
+```cpp
+class A {
+public:
+    int get() const { return 42; }   // promises not to modify object state
+};
+```
+
+Interview point:
+
+- read pointer declarations from right to left
+
+### `constexpr`
+
+`constexpr` means an expression or function can be evaluated at compile time if given compile-time inputs.
+
+```cpp
+constexpr int square(int x) {
+    return x * x;
+}
+
+constexpr int value = square(5);
+```
+
+Difference from `const`:
+
+- `const` means read-only
+- `constexpr` means compile-time evaluable when possible
+
+Useful variations:
+
+```cpp
+constexpr int n = 10;
+constexpr double pi = 3.14159;
+```
+
+### `consteval`
+
+`consteval` forces compile-time evaluation.
+
+```cpp
+consteval int cube(int x) {
+    return x * x * x;
+}
+
+constexpr int v = cube(3);
+```
+
+Use it when:
+
+- a value must be computed at compile time
+
+### `static`
+
+`static` changes storage duration or class-level ownership depending on context.
+
+#### Static local variable
+
+```cpp
+void counter() {
+    static int count = 0;
+    ++count;
+}
+```
+
+Meaning:
+
+- created once
+- retains value between function calls
+
+#### Static data member
+
+```cpp
+class User {
+public:
+    static int count;
+};
+
+int User::count = 0;
+```
+
+Meaning:
+
+- shared by all objects of the class
+
+#### Static member function
+
+```cpp
+class Math {
+public:
+    static int add(int a, int b) { return a + b; }
+};
+```
+
+Meaning:
+
+- belongs to the class, not an object
+- cannot access non-static members directly
+
+### `inline`
+
+`inline` suggests inlining and also allows the same function definition to appear in multiple translation units safely.
+
+```cpp
+inline int add(int a, int b) {
+    return a + b;
+}
+```
+
+Important note:
+
+- modern compilers decide actual inlining
+- the keyword is also important for header-defined functions
+
+### `virtual`
+
+`virtual` enables runtime polymorphism.
+
+```cpp
+class Base {
+public:
+    virtual void show() const {
+        cout << "Base\n";
+    }
+};
+```
+
+Meaning:
+
+- call resolution happens using actual object type when accessed through base pointer or reference
+
+### `override`
+
+`override` tells the compiler that a function is intended to override a base-class virtual function.
+
+```cpp
+class Derived : public Base {
+public:
+    void show() const override {
+        cout << "Derived\n";
+    }
+};
+```
+
+Why it is useful:
+
+- catches signature mismatches
+- improves readability
+
+### `final`
+
+`final` prevents further overriding or inheritance.
+
+Function variation:
+
+```cpp
+class B {
+public:
+    virtual void f();
+};
+
+class D : public B {
+public:
+    void f() final;
+};
+```
+
+Class variation:
+
+```cpp
+class Utility final {
+};
+```
+
+Meaning:
+
+- a `final` class cannot be inherited
+- a `final` function cannot be overridden further
+
+### `explicit`
+
+`explicit` prevents unwanted implicit conversions through single-argument constructors or conversion operators.
+
+Without `explicit`:
+
+```cpp
+class Number {
+public:
+    Number(int x) {}
+};
+
+void print(Number n) {}
+// print(5);   // allowed if constructor is not explicit
+```
+
+With `explicit`:
+
+```cpp
+class Number {
+public:
+    explicit Number(int x) {}
+};
+
+// print(5);   // error
+print(Number(5));
+```
+
+Interview point:
+
+- use `explicit` by default for single-argument constructors unless implicit conversion is intentionally desired
+
+### `mutable`
+
+`mutable` allows a member to be modified even inside a `const` member function.
+
+```cpp
+class Cache {
+    mutable int hits = 0;
+
+public:
+    int get() const {
+        ++hits;
+        return 42;
+    }
+};
+```
+
+Use it carefully for:
+
+- caching
+- statistics
+- lazy initialization
+
+### `volatile`
+
+`volatile` tells the compiler that a value can change unexpectedly outside normal program flow.
+
+```cpp
+volatile int* statusRegister = reinterpret_cast<volatile int*>(0x1234);
+```
+
+Typical use:
+
+- memory-mapped hardware registers
+- low-level embedded programming
+
+Important note:
+
+- `volatile` does not make code thread-safe
+- it is not a replacement for `atomic`
+
+### `noexcept`
+
+`noexcept` declares that a function does not throw exceptions.
+
+```cpp
+void cleanup() noexcept {
+}
+```
+
+Move operations often use it:
+
+```cpp
+class Buffer3 {
+public:
+    Buffer3(Buffer3&& other) noexcept = default;
+};
+```
+
+Why it matters:
+
+- standard containers prefer `noexcept` moves during reallocation
+
+### `auto`
+
+`auto` asks the compiler to deduce the type from the initializer.
+
+```cpp
+auto x = 10;        // int
+auto y = 3.14;      // double
+auto p = make_unique<int>(5);
+```
+
+Use it when:
+
+- the type is obvious from the right-hand side
+- the type is long or template-heavy
+
+Be careful:
+
+```cpp
+const int a = 10;
+auto b = a;         // b is int, top-level const is dropped
+const auto c = a;   // c is const int
+```
+
+### `decltype`
+
+`decltype` extracts the type of an expression.
+
+```cpp
+int x = 5;
+decltype(x) y = 10;   // y is int
+```
+
+Common use:
+
+- template metaprogramming
+- preserving exact types
+- trailing return types
+
+### `typename`
+
+`typename` is used in templates to tell the compiler that a dependent name is a type.
+
+```cpp
+template <typename T>
+typename T::value_type getFirst(const T& container) {
+    return *container.begin();
+}
+```
+
+Without `typename`, the compiler may not know whether `T::value_type` is a type or something else.
+
+### `using`
+
+`using` creates aliases and helps with cleaner code.
+
+Type alias example:
+
+```cpp
+using ll = long long;
+using IntVector = vector<int>;
+```
+
+Namespace usage example:
+
+```cpp
+using std::cout;
+using std::string;
+```
+
+Modern preference:
+
+- prefer `using` over `typedef` for readability
+
+### `nullptr`
+
+`nullptr` is the modern null pointer literal.
+
+```cpp
+int* ptr = nullptr;
+```
+
+Why use it instead of `NULL`:
+
+- it has a real pointer type
+- avoids overload ambiguity
+
+### `friend`
+
+`friend` allows another function or class to access private members.
+
+```cpp
+class Box {
+private:
+    int value = 10;
+
+    friend void show(const Box& b);
+};
+
+void show(const Box& b) {
+    cout << b.value << '\n';
+}
+```
+
+Use carefully:
+
+- it increases coupling
+- but can be useful for operators or tightly related helper code
+
+### `new` and `delete`
+
+These allocate and free dynamic memory manually.
+
+```cpp
+int* p = new int(5);
+delete p;
+```
+
+Array variation:
+
+```cpp
+int* arr = new int[10];
+delete[] arr;
+```
+
+Interview point:
+
+- in modern C++, prefer standard containers and smart pointers over manual `new` and `delete`
+
+### `thread_local`
+
+`thread_local` creates one separate instance per thread.
+
+```cpp
+thread_local int localCount = 0;
+```
+
+Use it when:
+
+- each thread needs its own state
+- data must not be shared across threads
+
+### Common Keyword Combinations
+
+Some combinations are especially common in modern C++:
+
+#### `const auto`
+
+```cpp
+const auto value = 42;
+```
+
+Use when:
+
+- type should be deduced
+- variable should not be modified
+
+#### `static constexpr`
+
+```cpp
+class Config {
+public:
+    static constexpr int maxSize = 100;
+};
+```
+
+Use when:
+
+- class-level constant is known at compile time
+
+#### `virtual ... override`
+
+```cpp
+class Animal {
+public:
+    virtual void speak() const = 0;
+};
+
+class Dog : public Animal {
+public:
+    void speak() const override {
+        cout << "Bark\n";
+    }
+};
+```
+
+Use when:
+
+- base class defines polymorphic interface
+- derived class provides implementation
+
+#### `const std::unique_ptr<T>&`
+
+```cpp
+void printValue(const unique_ptr<int>& p) {
+    if (p) cout << *p << '\n';
+}
+```
+
+Meaning:
+
+- you are not transferring ownership
+- you are only observing the pointed object through the smart pointer
+
+#### `T&&`
+
+```cpp
+void setName(string&& s) {
+    name = move(s);
+}
+```
+
+Meaning:
+
+- accepts an rvalue reference
+- enables moving instead of copying
+
+### Quick Keyword Revision One-Liners
+
+- `const` means read-only through that name.
+- `constexpr` means compile-time evaluable when possible.
+- `static` means persistent or class-level depending on context.
+- `virtual` enables runtime polymorphism.
+- `override` verifies that overriding is correct.
+- `final` stops further inheritance or overriding.
+- `explicit` prevents unwanted implicit conversions.
+- `mutable` allows modification inside `const` member functions.
+- `volatile` is for special low-level memory behavior, not for thread safety.
+- `noexcept` tells the compiler and users that a function should not throw.
+- `auto` asks the compiler to deduce the type.
+- `decltype` extracts a type from an expression.
+- `nullptr` is the type-safe null pointer literal.
 
 ---
 
