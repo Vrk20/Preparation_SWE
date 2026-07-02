@@ -17,9 +17,8 @@ int* grow(int* oldarr,int oldsize,int newsize){
 
 // added sample push_back function from vector 
 void push_back(int*& arr,int& size,int& capacity,int x){
-    if(size == capacity){
+    if (size == capacity){
         arr = grow(arr,capacity,capacity*2);
-        capacity *=2;
     }
     arr[size] = x;
     size++;

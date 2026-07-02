@@ -27,17 +27,16 @@ public:
     }
 };
 
-class ConcreteObserver : public Observer {
-public:
-    void update(int value) override {
-        std::cout << "Observer received value: " << value << std::endl;
+class concreteObserer:public Observer{
+    public:
+    void update(int value) override{
+        std::cout<<"Obsever received value: "<<value;
     }
 };
 
-
 int main(){
     Subject s1;
-    ConcreteObserver o1;
+    concreteObserer o1;
     s1.attach(&o1);
-    s1.setState(4);
+    s1.setState(4);  
 }

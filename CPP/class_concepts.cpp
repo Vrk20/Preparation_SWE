@@ -57,7 +57,6 @@ public:
             age = other.age;
 
             delete scores;
-            scores = other.scores;
             other.scores = nullptr;
         }
         std::cout << "Move assignment called\n";

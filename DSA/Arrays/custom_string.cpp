@@ -1,5 +1,5 @@
 #include<iostream>
-#include<cstring>
+// #include<cstring>
 
 class Mystring{
 private:
