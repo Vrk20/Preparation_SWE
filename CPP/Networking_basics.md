@@ -5,7 +5,7 @@ A comprehensive technical compilation covering NETCONF, system diagnostics, mult
 *   **Multiple Datastores:** Separates configuration states into specific data stores: `running` (active), `startup` (boot), and `candidate` (testing).
 ---## 2. NETCONF Deep Dive & Python Hands-on### The 4 Layers of NETCONFNETCONF organizes its functionality into four distinct conceptual layers:
 
-
+```
 +-------------------------------------------------+
 | Content Layer (YANG Data Models) |
 +-------------------------------------------------+
@@ -15,7 +15,7 @@ A comprehensive technical compilation covering NETCONF, system diagnostics, mult
 +-------------------------------------------------+
 | Secure Transport (SSH, TLS) |
 +-------------------------------------------------+
-
+```
 
 1.  **Secure Transport:** Provides a secure, reliable communication path (typically **SSH**).
 2.  **Messages:** Provides a framing mechanism for requests/responses using Remote Procedure Calls (`<rpc>` and `<rpc-reply>`).
@@ -91,13 +91,13 @@ with manager.connect(
 *   **RabbitMQ** is a tool for **moving** data (Message Broker).
 
 ### Mapping to the OSI Model
-
+```
 +---------------------------------------+
 | Layer 7 (Application) | RabbitMQ | <- Manages queues, routing, and delivery
 +---------------------------------------+ [1] 
 | Layer 6 (Presentation) | Nanopb | <- Compresses and serializes data formats
 +---------------------------------------+
-
+```
 
 ### The Post Office Analogy
 *   **Nanopb** is the **language or shorthand code** you use to write your message on a tiny piece of paper so it fits in a small envelope efficiently.
