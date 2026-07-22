@@ -321,6 +321,5 @@ Modern communication platforms stack functionality into 5 unified abstract proce
 *   **Transaction Safety:** SNMP lacks atomic configuration safety—if an operation fails halfway, the device remains partially modified and broken. NETCONF utilizes complete **all-or-nothing transactions**; any step error rolls the entire unit state back to its last known safe deployment profile.
 
 ------------------------------
-If you need any adjustments to the structure, or want to expand any code blocks into full implementations, let me know!
 
 [1] [https://aicoach.co.za](https://aicoach.co.za/house-of-claude/module2/claude-md-files/)
